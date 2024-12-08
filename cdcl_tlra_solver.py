@@ -82,9 +82,9 @@ class BooleanAbstraction():
 
         raise NotImplementedError()
 
-def get_sat_assignment(clauses):
+def get_sat_assignment(sat_solver, clauses):
     cnf = pysat.formula.CNF(from_clauses=clauses)
-    with pysat.solvers.Solver(name="minisat22", bootstrap_with=cnf) as solver:
+    with pysat.solvers.Solver(name=sat_solver, bootstrap_with=cnf) as solver:
         if solver.solve():
             print("sat")
             return solver.get_model()
@@ -92,10 +92,36 @@ def get_sat_assignment(clauses):
             print("unsat")
     return []
 
+class UnknownSatSolver(argparse.ArgumentError):
+    pass
+
+class SatSolver:
+    def __init__(self, solver_name):
+        self.validate_name(solver_name)
+        self.name = solver_name
+
+    def validate_name(self, solver_name):
+        available_solvers = pysat.solvers.SolverNames.__dict__
+        for member, available_names in available_solvers.items():
+            if member.startswith("__"):
+                continue
+            if solver_name in available_names:
+                return
+
+        raise UnknownSatSolver(solver_name)
+
 def main():
     arg_parser = argparse.ArgumentParser(prog="cdcl_tlra_solver",
                                          description="A Python CDCL(TLRA) SMT solver")
-    arg_parser.add_argument("smt_lib2_filename")
+    arg_parser.add_argument("smt_lib2_filename",
+                            help="Input file on SMT-LIB2 format")
+    arg_parser.add_argument("--sat-solver",
+                            type=SatSolver,
+                            default="minisat22",
+                            help="SAT solver used for solving propositional "
+                                 "abstraction (Default: minisat22). "
+                                 "Refer to https://pysathq.github.io/docs/html/api/solvers.html#pysat.solvers.SolverNames "
+                                 "for available solvers.")
     args = arg_parser.parse_args()
 
     smt_parser = pysmt.smtlib.parser.SmtLibParser()
@@ -111,7 +137,7 @@ def main():
     clauses = bool_abstraction.get_clauses()
     print(clauses)
 
-    assignment = get_sat_assignment(clauses)
+    assignment = get_sat_assignment(args.sat_solver.name, clauses)
     for abstraction in assignment:
         print(bool_abstraction.get_atom(abstraction))
 
