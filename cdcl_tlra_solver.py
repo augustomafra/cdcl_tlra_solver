@@ -8,6 +8,7 @@ import pysmt.smtlib.script
 import argparse
 
 def eval_smt_lib2_script(script, solver):
+    print("Evaluating SMT-LIB2 script on SMT solver: {}".format(type(solver)))
     steps = []
     for command in script.commands:
         try:
@@ -83,6 +84,7 @@ class BooleanAbstraction():
         raise NotImplementedError()
 
 def get_sat_assignment(sat_solver, clauses):
+    print("\nRunning SAT solver: {}".format(sat_solver))
     cnf = pysat.formula.CNF(from_clauses=clauses)
     with pysat.solvers.Solver(name=sat_solver, bootstrap_with=cnf) as solver:
         if solver.solve():
@@ -132,12 +134,15 @@ def main():
     eval_smt_lib2_script(script, solver)
 
     bool_abstraction = BooleanAbstraction(script.get_strict_formula())
-    print(bool_abstraction.abstractions)
+    print("\nClausifying SMT-LIB2 formula: {}".format(script.get_strict_formula()))
+    for atom, abs in bool_abstraction.abstractions.items():
+        print("{}: {}".format(str(atom), abs))
 
     clauses = bool_abstraction.get_clauses()
-    print(clauses)
+    print("\nClauses: {}".format(clauses))
 
     assignment = get_sat_assignment(args.sat_solver.name, clauses)
+    print("\nSatisfying atoms from SAT solver:")
     for abstraction in assignment:
         print(bool_abstraction.get_atom(abstraction))
 
