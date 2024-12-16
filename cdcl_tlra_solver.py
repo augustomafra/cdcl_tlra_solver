@@ -32,54 +32,88 @@ class BooleanAbstraction():
             For now we assume the input formula is CNF
         """
         self.formula = formula
-        self.atoms = list()
+        self.expressions = list()
         self.abstractions = dict()
         self.clauses = list()
         for atom in formula.get_atoms():
-            if atom not in self.abstractions:
-                self.atoms.append(atom)
-                self.abstractions[atom] = len(self.atoms)
+            self.add_abstraction(atom)
+
+    def add_abstraction(self, expr):
+        abstraction = self.get_abstraction(expr)
+
+        if abstraction:
+            return abstraction
+
+        self.expressions.append(expr)
+        new_abstraction = len(self.expressions)
+        self.abstractions[expr] = new_abstraction
+        return new_abstraction
 
     def get_abstraction(self, expr):
         return self.abstractions[expr] if expr in self.abstractions else None
 
-    def get_atom(self, abstraction):
-        return self.atoms[abstraction - 1]
+    def get_expression(self, abstraction):
+        if abstraction < 0:
+            # TODO: Create negated expression to return
+            abstraction = -abstraction
+        return self.expressions[abstraction - 1]
 
     def get_clauses(self):
         if self.clauses:
             return self.clauses
 
-        for expr in self.formula.args():
-            clause = self.clausify(expr)
-            self.clauses.append(clause)
+        abstraction = self.clausify(self.formula)
+        self.clauses.append([abstraction])
 
         return self.clauses
 
     def clausify(self, expr):
         abstraction = self.get_abstraction(expr)
         if abstraction:
-            # Expr is an atom, so simply return a clause with its abstraction
-            return [abstraction]
+            # Expr is an atom, so simply return its abstraction
+            return abstraction
 
+        abstraction = self.add_abstraction(expr)
+
+        # Recursively apply Tseitin's encoding on the expression
         match expr.node_type():
             case pysmt.operators.NOT:
-                subexpr = self.clausify(expr.arg(0))
-                if len(subexpr) != 1:
-                    raise NotImplementedError("Clausifier does not support NOT operation with more than one operand")
-                return [-subexpr[0]]
+                child = self.clausify(expr.arg(0))
+
+                # abstraction => -child
+                self.clauses.append([-abstraction, -child])
+
+                # -child => abstraction
+                self.clauses.append([child, abstraction])
+
+                return abstraction
 
             case pysmt.operators.OR:
-                lhs = self.clausify(expr.arg(0))
-                if len(lhs) != 1:
-                    raise NotImplementedError("Clausifier does not support OR operation with more than one level of nesting")
-                rhs = self.clausify(expr.arg(1))
-                if len(rhs) != 1:
-                    raise NotImplementedError("Clausifier does not support OR operation with more than one level of nesting")
-                return [lhs[0], rhs[0]]
+                children = [self.clausify(arg) for arg in expr.args()]
+
+                for child in children:
+                    # child => abstraction
+                    self.clauses.append([-child, abstraction])
+
+                # abstraction => child1 v child2 v ... v childn
+                children.append(-abstraction)
+                self.clauses.append(children)
+
+                return abstraction
 
             case pysmt.operators.AND:
-                raise NotImplementedError("Clausifier does not support AND operation, assuming CNF input for now")
+                children = [self.clausify(arg) for arg in expr.args()]
+
+                for child in children:
+                    # abstraction => child
+                    self.clauses.append([-abstraction, child])
+
+                # child1 ^ child2 ^ ... ^ childn => abstraction
+                negated_children = [-child for child in children]
+                negated_children.append(abstraction)
+                self.clauses.append(negated_children)
+
+                return abstraction
 
         raise NotImplementedError()
 
@@ -135,16 +169,20 @@ def main():
 
     bool_abstraction = BooleanAbstraction(script.get_strict_formula())
     print("\nClausifying SMT-LIB2 formula: {}".format(script.get_strict_formula()))
-    for atom, abs in bool_abstraction.abstractions.items():
-        print("{}: {}".format(str(atom), abs))
 
     clauses = bool_abstraction.get_clauses()
+
+    for atom, abs in bool_abstraction.abstractions.items():
+        print("{}: {}".format(atom, abs))
     print("\nClauses: {}".format(clauses))
 
     assignment = get_sat_assignment(args.sat_solver.name, clauses)
-    print("\nSatisfying atoms from SAT solver:")
+    print("\nSatisfying expressions from SAT solver:")
     for abstraction in assignment:
-        print(bool_abstraction.get_atom(abstraction))
+        print("{}{}{}: {}".format("(! " if abstraction < 0 else "",
+                                bool_abstraction.get_expression(abstraction),
+                                ")" if abstraction < 0 else "",
+                                abstraction))
 
 if __name__ == "__main__":
     main()
