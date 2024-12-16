@@ -8,8 +8,8 @@ import pysmt.smtlib.script
 
 import argparse
 
-def eval_smt_lib2_script(script, solver):
-    print("Evaluating SMT-LIB2 script on SMT solver: {}".format(type(solver)))
+def eval_smt_lib2_script(script, solver, solver_name):
+    print("Evaluating SMT-LIB2 script on SMT solver: {}".format(solver_name))
     steps = []
     for command in script.commands:
         try:
@@ -165,12 +165,11 @@ def main():
     smt_parser = pysmt.smtlib.parser.SmtLibParser()
     script = smt_parser.get_script_fname(args.smt_lib2_filename)
 
-    solver = pysmt.shortcuts.Solver(name="cvc5")
-
-    eval_smt_lib2_script(script, solver)
+    solver_name = "cvc5"
+    solver = pysmt.shortcuts.Solver(name=solver_name, logic="QF_LRA")
 
     bool_abstraction = BooleanAbstraction(script.get_strict_formula())
-    print("\nClausifying SMT-LIB2 formula: {}".format(script.get_strict_formula()))
+    print("Clausifying SMT-LIB2 formula: {}".format(script.get_strict_formula()))
 
     clauses = bool_abstraction.get_clauses()
 
@@ -179,10 +178,20 @@ def main():
     print("\nClauses: {}".format(clauses))
 
     assignment = get_sat_assignment(args.sat_solver.name, clauses)
-    print("\nSatisfying expressions from SAT solver:")
-    for abstraction in assignment:
-        print("{}: {}".format(bool_abstraction.get_expression(abstraction),
-                              abstraction))
+    if assignment:
+        print("\nSatisfying expressions from SAT solver:")
+        for abstraction in assignment:
+            expr = bool_abstraction.get_expression(abstraction)
+            print("{}: {}".format(expr,
+                                  abstraction))
+            solver.add_assertion(expr)
+
+        print("\nChecking assignment on QF_LRA solver: {}".format(solver_name))
+        if solver.solve():
+            print("sat")
+            print(solver.get_model())
+        else:
+            print("unsat")
 
 if __name__ == "__main__":
     main()
