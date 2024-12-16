@@ -1,6 +1,7 @@
 import pysat.formula
 import pysmt.operators
 import pysat.solvers
+import pysmt.environment
 import pysmt.shortcuts
 import pysmt.smtlib.parser
 import pysmt.smtlib.script
@@ -54,8 +55,9 @@ class BooleanAbstraction():
 
     def get_expression(self, abstraction):
         if abstraction < 0:
-            # TODO: Create negated expression to return
-            abstraction = -abstraction
+            expr = self.expressions[-abstraction - 1]
+            return pysmt.environment.get_env().formula_manager.Not(expr)
+
         return self.expressions[abstraction - 1]
 
     def get_clauses(self):
@@ -179,10 +181,8 @@ def main():
     assignment = get_sat_assignment(args.sat_solver.name, clauses)
     print("\nSatisfying expressions from SAT solver:")
     for abstraction in assignment:
-        print("{}{}{}: {}".format("(! " if abstraction < 0 else "",
-                                bool_abstraction.get_expression(abstraction),
-                                ")" if abstraction < 0 else "",
-                                abstraction))
+        print("{}: {}".format(bool_abstraction.get_expression(abstraction),
+                              abstraction))
 
 if __name__ == "__main__":
     main()
