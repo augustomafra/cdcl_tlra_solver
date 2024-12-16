@@ -174,7 +174,7 @@ def main():
     clauses = bool_abstraction.get_clauses()
 
     for atom, abs in bool_abstraction.abstractions.items():
-        print("{}: {}".format(atom, abs))
+        print("{}:\t{}".format(abs, atom))
     print("\nClauses: {}".format(clauses))
 
     assignment = get_sat_assignment(args.sat_solver.name, clauses)
@@ -182,8 +182,7 @@ def main():
         print("\nSatisfying expressions from SAT solver:")
         for abstraction in assignment:
             expr = bool_abstraction.get_expression(abstraction)
-            print("{}: {}".format(expr,
-                                  abstraction))
+            print("{}:\t{}".format(abstraction, expr))
             solver.add_assertion(expr)
 
         print("\nChecking assignment on QF_LRA solver: {}".format(solver_name))
