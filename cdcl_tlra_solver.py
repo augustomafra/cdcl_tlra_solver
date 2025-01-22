@@ -257,6 +257,9 @@ def main():
                                  "abstraction (Default: minisat22). "
                                  "Refer to https://pysathq.github.io/docs/html/api/solvers.html#pysat.solvers.SolverNames "
                                  "for available solvers.")
+    arg_parser.add_argument("--dump-models", "-m",
+                            action="store_true",
+                            help="Print models after every SAT response")
     arg_parser.add_argument("--verbose", "-v",
                             type=int,
                             default=0,
@@ -311,7 +314,8 @@ def main():
             debug_print(0, "\nChecking assignment on QF_LRA solver: {}", smt_solver_name)
             if smt_solver.solve():
                 print("sat")
-                print(smt_solver.get_model())
+                if args.dump_models:
+                    print(smt_solver.get_model())
                 smt_solver.pop()
                 smt_assertions.clear()
                 break
