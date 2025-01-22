@@ -191,7 +191,7 @@ def main():
                                          description="A Python CDCL(TLRA) SMT solver")
     arg_parser.add_argument("smt_lib2_filename",
                             help="Input file on SMT-LIB2 format")
-    arg_parser.add_argument("--sat-solver",
+    arg_parser.add_argument("--sat-solver", "-s",
                             type=SatSolver,
                             default="minisat22",
                             help="SAT solver used for solving propositional "
