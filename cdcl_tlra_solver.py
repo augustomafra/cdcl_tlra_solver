@@ -211,6 +211,7 @@ def main():
     with pysat.solvers.Solver(name=args.sat_solver.name) as sat_solver:
         smt_solver_name = "cvc5"
         smt_solver = pysmt.shortcuts.Solver(name=smt_solver_name, logic="QF_LRA")
+        smt_solver.cvc5.setOption("incremental", "true")
 
         formula = script.get_strict_formula()
         bool_abstraction = BooleanAbstraction(formula)
@@ -234,6 +235,7 @@ def main():
                 print("unsat")
                 break
 
+            smt_solver.push()
             debug_print("\nSatisfying expressions from SAT solver:")
             for abstraction in assignment:
                 expr = bool_abstraction.get_expression(abstraction)
@@ -244,9 +246,11 @@ def main():
             if smt_solver.solve():
                 print("sat")
                 print(smt_solver.get_model())
+                smt_solver.pop()
                 break
             else:
                 debug_print("unsat")
+                smt_solver.pop()
                 conflict_clause = [-literal for literal in assignment]
                 if conflict_clause:
                     debug_print("Adding conflict clause: {}", conflict_clause)
