@@ -314,7 +314,16 @@ def main():
                 debug_print(0, "unsat")
                 unsat_core = smt_solver.cvc5.getUnsatCore()
                 debug_print(0, "Unsat core: {}", unsat_core)
-                unsat_core_abs = [bool_abstraction.get_abstraction(smt_assertions[term]) for term in unsat_core]
+                unsat_core_abs = list()
+                for term in unsat_core:
+                    abs = None
+                    if term in smt_assertions:
+                        abs = bool_abstraction.get_abstraction(smt_assertions[term])
+                    if abs is None:
+                        for t, e in smt_assertions.items():
+                            if t.eqTerm(term):
+                                abs = bool_abstraction.get_abstraction(e)
+                    unsat_core_abs.append(abs)
                 #unsat_core_abs = [bool_abstraction.get_abstraction(cvc5_term_to_expr(smt_solver.converter, term)) for term in unsat_core]
                 debug_print(0, "Unsat core abstraction: {}", unsat_core_abs)
                 conflict_clause = [-abs for abs in unsat_core_abs]
