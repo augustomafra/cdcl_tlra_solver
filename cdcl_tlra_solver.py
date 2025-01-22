@@ -293,26 +293,33 @@ def main():
                 break
 
             smt_solver.push()
+            smt_assertions = dict()
             debug_print(1, "\nSatisfying expressions from SAT solver:")
             for abstraction in assignment:
                 expr = bool_abstraction.get_expression(abstraction)
                 debug_print(1, "{}:\t{}", abstraction, expr)
-                smt_solver.add_assertion(expr)
+                term = smt_solver.converter.convert(expr)
+                smt_assertions[term] = expr
+                smt_solver.cvc5.assertFormula(term)
+                #smt_solver.add_assertion(expr)
 
             debug_print(0, "\nChecking assignment on QF_LRA solver: {}", smt_solver_name)
             if smt_solver.solve():
                 print("sat")
                 print(smt_solver.get_model())
                 smt_solver.pop()
+                smt_assertions.clear()
                 break
             else:
                 debug_print(0, "unsat")
                 unsat_core = smt_solver.cvc5.getUnsatCore()
                 debug_print(0, "Unsat core: {}", unsat_core)
-                unsat_core_abs = [bool_abstraction.get_abstraction(cvc5_term_to_expr(smt_solver.converter, term)) for term in unsat_core]
+                unsat_core_abs = [bool_abstraction.get_abstraction(smt_assertions[term]) for term in unsat_core]
+                #unsat_core_abs = [bool_abstraction.get_abstraction(cvc5_term_to_expr(smt_solver.converter, term)) for term in unsat_core]
                 debug_print(0, "Unsat core abstraction: {}", unsat_core_abs)
                 conflict_clause = [-abs for abs in unsat_core_abs]
                 smt_solver.pop()
+                smt_assertions.clear()
                 if conflict_clause:
                     debug_print(0, "Adding conflict clause: {}", conflict_clause)
                     sat_solver.add_clause(conflict_clause)
