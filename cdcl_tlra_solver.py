@@ -121,7 +121,7 @@ class BooleanAbstraction():
 
                 return abstraction
 
-        raise NotImplementedError()
+        raise NotImplementedError(expr)
 
 def get_sat_assignment(sat_solver, solver_name):
     debug_print("\nRunning SAT solver: {}", solver_name)
