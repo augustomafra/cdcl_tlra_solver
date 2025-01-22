@@ -8,6 +8,7 @@ import pysmt.smtlib.parser
 import pysmt.smtlib.script
 
 import argparse
+import sys
 
 verbose = 0
 
@@ -281,7 +282,11 @@ def main():
         formula = script.get_strict_formula()
 
         debug_print(1, "Clausifying SMT-LIB2 formula: {}", formula)
-        bool_abstraction = BooleanAbstraction(formula)
+        try:
+            bool_abstraction = BooleanAbstraction(formula)
+        except RecursionError as stack_overflow_error:
+            print(stack_overflow_error)
+            sys.exit(1)
         clauses = bool_abstraction.clauses
 
         for atom, abs in bool_abstraction.abstractions.items():
