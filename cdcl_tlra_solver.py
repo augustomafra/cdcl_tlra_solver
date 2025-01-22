@@ -60,7 +60,14 @@ class BooleanAbstraction():
         return new_abstraction
 
     def get_abstraction(self, expr):
-        return self.abstractions[expr] if expr in self.abstractions else None
+        if expr in self.abstractions:
+            return self.abstractions[expr]
+        elif expr.node_type() == pysmt.operators.NOT:
+            sub_expr = expr.arg(0)
+            if sub_expr in self.abstractions:
+                return -self.abstractions[sub_expr]
+
+        return None
 
     def get_expression(self, abstraction):
         if abstraction < 0:
@@ -317,10 +324,6 @@ def main():
                     abs = None
                     if term in smt_assertions:
                         abs = bool_abstraction.get_abstraction(smt_assertions[term])
-                    if abs is None:
-                        for t, e in smt_assertions.items():
-                            if t.eqTerm(term):
-                                abs = bool_abstraction.get_abstraction(e)
                     unsat_core_abs.append(abs)
                 #unsat_core_abs = [bool_abstraction.get_abstraction(cvc5_term_to_expr(smt_solver.converter, term)) for term in unsat_core]
                 debug_print(0, "Unsat core abstraction: {}", unsat_core_abs)
