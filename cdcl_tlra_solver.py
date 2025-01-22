@@ -1,3 +1,4 @@
+import cvc5.cvc5_python_base
 import pysat.formula
 import pysmt.operators
 import pysat.solvers
@@ -186,6 +187,59 @@ class SatSolver:
 
         raise UnknownSatSolver(solver_name)
 
+def cvc5_term_to_expr(cvc5_converter, term):
+    mng = pysmt.environment.get_env().formula_manager
+
+    children = [cvc5_term_to_expr(cvc5_converter, child) for child in term]
+
+    match term.getKind():
+        case cvc5.Kind.EQUAL:
+            lhs, rhs = children
+            return mng.Equals(lhs, rhs)
+
+        case cvc5.Kind.NOT:
+            return mng.Not(children[0])
+
+        case cvc5.Kind.LEQ:
+            first_type = children[0].get_type()
+            diff_types = False
+            for child in children:
+                if child.get_type() != first_type:
+                    diff_types = True
+                    break
+            lhs, rhs = children
+            if diff_types:
+                return mng.LE(mng.ToReal(lhs), mng.ToReal(rhs))
+            return mng.LE(lhs, rhs)
+
+        case cvc5.Kind.SUB:
+            lhs, rhs = children
+            return mng.Minus(lhs, rhs)
+
+        case cvc5.Kind.MULT:
+            first_type = children[0].get_type()
+            diff_types = False
+            for child in children:
+                if child.get_type() != first_type:
+                    diff_types = True
+                    break
+            if diff_types:
+                return mng.Times([mng.ToReal(child) for child in children])
+            return mng.Times(children)
+
+        case cvc5.Kind.CONSTANT:
+            for expr, cvc5_term in cvc5_converter.declared_vars.items():
+                if term == cvc5_term:
+                    return expr
+
+        case cvc5.Kind.CONST_INTEGER:
+            return cvc5_converter.back(term)
+
+        case cvc5.Kind.CONST_RATIONAL:
+            return cvc5_converter.back(term)
+
+    raise NotImplementedError(term, term.getKind())
+
 def main():
     arg_parser = argparse.ArgumentParser(prog="cdcl_tlra_solver",
                                          description="A Python CDCL(TLRA) SMT solver")
@@ -254,11 +308,13 @@ def main():
             else:
                 debug_print(0, "unsat")
                 unsat_core = smt_solver.cvc5.getUnsatCore()
+                debug_print(0, "Unsat core: {}", unsat_core)
+                unsat_core_abs = [bool_abstraction.get_abstraction(cvc5_term_to_expr(smt_solver.converter, term)) for term in unsat_core]
+                debug_print(0, "Unsat core abstraction: {}", unsat_core_abs)
+                conflict_clause = [-abs for abs in unsat_core_abs]
                 smt_solver.pop()
-                conflict_clause = [-literal for literal in assignment]
                 if conflict_clause:
                     debug_print(0, "Adding conflict clause: {}", conflict_clause)
-                    debug_print(0, "Unsat core was: {}", unsat_core)
                     sat_solver.add_clause(conflict_clause)
 
 
