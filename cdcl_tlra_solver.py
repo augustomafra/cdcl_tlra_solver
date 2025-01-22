@@ -213,6 +213,8 @@ def main():
         smt_solver_name = "cvc5"
         smt_solver = pysmt.shortcuts.Solver(name=smt_solver_name, logic="QF_LRA")
         smt_solver.cvc5.setOption("incremental", "true")
+        smt_solver.cvc5.setOption("produce-unsat-cores", "true")
+        smt_solver.cvc5.setOption("ite-simp", "false")
 
         formula = script.get_strict_formula()
         bool_abstraction = BooleanAbstraction(formula)
@@ -251,10 +253,12 @@ def main():
                 break
             else:
                 debug_print(0, "unsat")
+                unsat_core = smt_solver.cvc5.getUnsatCore()
                 smt_solver.pop()
                 conflict_clause = [-literal for literal in assignment]
                 if conflict_clause:
                     debug_print(0, "Adding conflict clause: {}", conflict_clause)
+                    debug_print(0, "Unsat core was: {}", unsat_core)
                     sat_solver.add_clause(conflict_clause)
 
 
