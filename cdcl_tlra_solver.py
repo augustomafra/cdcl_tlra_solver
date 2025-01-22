@@ -119,12 +119,8 @@ class BooleanAbstraction():
 
         raise NotImplementedError()
 
-def get_sat_assignment(sat_solver, solver_name, clauses):
+def get_sat_assignment(sat_solver, solver_name):
     print("\nRunning SAT solver: {}".format(solver_name))
-    cnf = pysat.formula.CNF(from_clauses=clauses)
-
-    for clause in cnf:
-        sat_solver.add_clause(clause)
 
     if sat_solver.solve():
         print("sat")
@@ -182,8 +178,17 @@ def main():
             print("{}:\t{}".format(abs, atom))
         print("\nClauses: {}".format(clauses))
 
-        assignment = get_sat_assignment(sat_solver, args.sat_solver.name, clauses)
-        if assignment:
+        cnf = pysat.formula.CNF(from_clauses=clauses)
+
+        for clause in cnf:
+            sat_solver.add_clause(clause)
+
+        while True:
+            assignment = get_sat_assignment(sat_solver, args.sat_solver.name)
+
+            if not assignment:
+                break
+
             print("\nSatisfying expressions from SAT solver:")
             for abstraction in assignment:
                 expr = bool_abstraction.get_expression(abstraction)
@@ -194,8 +199,14 @@ def main():
             if smt_solver.solve():
                 print("sat")
                 print(smt_solver.get_model())
+                break
             else:
                 print("unsat")
+                conflict_clause = [-literal for literal in assignment]
+                if conflict_clause:
+                    print("Adding conflict clause: {}".format(conflict_clause))
+                    sat_solver.add_clause(conflict_clause)
+
 
 if __name__ == "__main__":
     main()
