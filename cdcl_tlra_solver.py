@@ -121,6 +121,41 @@ class BooleanAbstraction():
 
                 return abstraction
 
+            case pysmt.operators.IMPLIES:
+                children = [self.clausify(arg) for arg in expr.args()]
+                precondition = children.pop(0)
+
+                # abstraction => (precondition => children)
+                clause = [-abstraction, -precondition]
+                clause.extend(children)
+                self.clauses.append(clause)
+
+                # -precondition => abstraction
+                self.clauses.append([precondition, abstraction])
+
+                for child in children:
+                    # child => abstraction
+                    self.clauses.append([-child, abstraction])
+
+                return abstraction
+
+            case pysmt.operators.IFF:
+                lhs, rhs = [self.clausify(arg) for arg in expr.args()]
+
+                # abstraction => (lhs => rhs)
+                self.clauses.append([-abstraction, -lhs, rhs])
+
+                # abstraction => (rhs => lhs)
+                self.clauses.append([-abstraction, lhs, -rhs])
+
+                # lhs ^ rhs => abstraction
+                self.clauses.append([-lhs, -rhs, abstraction])
+
+                # -lhs ^ -rhs => abstraction
+                self.clauses.append([lhs, rhs, abstraction])
+
+                return abstraction
+
         raise NotImplementedError(expr)
 
 def get_sat_assignment(sat_solver, solver_name):
