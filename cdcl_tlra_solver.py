@@ -29,9 +29,6 @@ def eval_smt_lib2_script(script, solver, solver_name):
 
 class BooleanAbstraction():
     def __init__(self, formula):
-        """ TODO: Do conversion to CNF.
-            For now we assume the input formula is CNF
-        """
         self.formula = formula
         self.expressions = list()
         self.abstractions = dict()
