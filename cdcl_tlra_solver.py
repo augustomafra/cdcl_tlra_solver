@@ -119,15 +119,18 @@ class BooleanAbstraction():
 
         raise NotImplementedError()
 
-def get_sat_assignment(sat_solver, clauses):
-    print("\nRunning SAT solver: {}".format(sat_solver))
+def get_sat_assignment(sat_solver, solver_name, clauses):
+    print("\nRunning SAT solver: {}".format(solver_name))
     cnf = pysat.formula.CNF(from_clauses=clauses)
-    with pysat.solvers.Solver(name=sat_solver, bootstrap_with=cnf) as solver:
-        if solver.solve():
-            print("sat")
-            return solver.get_model()
-        else:
-            print("unsat")
+
+    for clause in cnf:
+        sat_solver.add_clause(clause)
+
+    if sat_solver.solve():
+        print("sat")
+        return sat_solver.get_model()
+
+    print("unsat")
     return []
 
 class UnknownSatSolver(argparse.ArgumentError):
@@ -165,32 +168,34 @@ def main():
     smt_parser = pysmt.smtlib.parser.SmtLibParser()
     script = smt_parser.get_script_fname(args.smt_lib2_filename)
 
-    solver_name = "cvc5"
-    solver = pysmt.shortcuts.Solver(name=solver_name, logic="QF_LRA")
+    with pysat.solvers.Solver(name=args.sat_solver.name) as sat_solver:
+        smt_solver_name = "cvc5"
+        smt_solver = pysmt.shortcuts.Solver(name=smt_solver_name, logic="QF_LRA")
 
-    bool_abstraction = BooleanAbstraction(script.get_strict_formula())
-    print("Clausifying SMT-LIB2 formula: {}".format(script.get_strict_formula()))
+        formula = script.get_strict_formula()
+        bool_abstraction = BooleanAbstraction(formula)
+        print("Clausifying SMT-LIB2 formula: {}".format(formula))
 
-    clauses = bool_abstraction.get_clauses()
+        clauses = bool_abstraction.get_clauses()
 
-    for atom, abs in bool_abstraction.abstractions.items():
-        print("{}:\t{}".format(abs, atom))
-    print("\nClauses: {}".format(clauses))
+        for atom, abs in bool_abstraction.abstractions.items():
+            print("{}:\t{}".format(abs, atom))
+        print("\nClauses: {}".format(clauses))
 
-    assignment = get_sat_assignment(args.sat_solver.name, clauses)
-    if assignment:
-        print("\nSatisfying expressions from SAT solver:")
-        for abstraction in assignment:
-            expr = bool_abstraction.get_expression(abstraction)
-            print("{}:\t{}".format(abstraction, expr))
-            solver.add_assertion(expr)
+        assignment = get_sat_assignment(sat_solver, args.sat_solver.name, clauses)
+        if assignment:
+            print("\nSatisfying expressions from SAT solver:")
+            for abstraction in assignment:
+                expr = bool_abstraction.get_expression(abstraction)
+                print("{}:\t{}".format(abstraction, expr))
+                smt_solver.add_assertion(expr)
 
-        print("\nChecking assignment on QF_LRA solver: {}".format(solver_name))
-        if solver.solve():
-            print("sat")
-            print(solver.get_model())
-        else:
-            print("unsat")
+            print("\nChecking assignment on QF_LRA solver: {}".format(smt_solver_name))
+            if smt_solver.solve():
+                print("sat")
+                print(smt_solver.get_model())
+            else:
+                print("unsat")
 
 if __name__ == "__main__":
     main()
