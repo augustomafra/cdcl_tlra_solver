@@ -8,31 +8,31 @@ import pysmt.smtlib.script
 
 import argparse
 
-verbose = None
+verbose = 0
 
-def debug_print(fmt, *args):
+def debug_print(verbosity_level, fmt, *args):
     global verbose
-    if verbose:
+    if verbose > verbosity_level:
         print(fmt.format(*args))
 
 def eval_smt_lib2_script(script, solver, solver_name):
-    debug_print("Evaluating SMT-LIB2 script on SMT solver: {}", solver_name)
+    debug_print(0, "Evaluating SMT-LIB2 script on SMT solver: {}", solver_name)
     steps = []
     for command in script.commands:
         try:
             result = pysmt.smtlib.script.evaluate_command(command, solver)
             steps.append((command.name, result))
         except RuntimeError as error:
-            debug_print("ERROR: {}: {}", command.name, error)
+            debug_print(0, "ERROR: {}: {}", command.name, error)
             steps.append((command.name, None))
 
     for command, result in steps:
         match command:
             case "check-sat":
-                debug_print("sat" if result else "unsat")
+                debug_print(0, "sat" if result else "unsat")
             case "get-model":
                 if result:
-                    debug_print(result)
+                    debug_print(0, result)
 
 class BooleanAbstraction():
     def __init__(self, formula):
@@ -159,13 +159,13 @@ class BooleanAbstraction():
         raise NotImplementedError(expr)
 
 def get_sat_assignment(sat_solver, solver_name):
-    debug_print("\nRunning SAT solver: {}", solver_name)
+    debug_print(0, "\nRunning SAT solver: {}", solver_name)
 
     if sat_solver.solve():
-        debug_print("sat")
+        debug_print(0, "sat")
         return sat_solver.get_model()
 
-    debug_print("unsat")
+    debug_print(0, "unsat")
     return []
 
 class UnknownSatSolver(argparse.ArgumentError):
@@ -199,7 +199,8 @@ def main():
                                  "Refer to https://pysathq.github.io/docs/html/api/solvers.html#pysat.solvers.SolverNames "
                                  "for available solvers.")
     arg_parser.add_argument("--verbose", "-v",
-                            action="store_true",
+                            type=int,
+                            default=0,
                             help="Print verbose debugging log")
     args = arg_parser.parse_args()
     global verbose
@@ -215,13 +216,13 @@ def main():
 
         formula = script.get_strict_formula()
         bool_abstraction = BooleanAbstraction(formula)
-        debug_print("Clausifying SMT-LIB2 formula: {}", formula)
+        debug_print(1, "Clausifying SMT-LIB2 formula: {}", formula)
 
         clauses = bool_abstraction.get_clauses()
 
         for atom, abs in bool_abstraction.abstractions.items():
-            debug_print("{}:\t{}", abs, atom)
-        debug_print("\nClauses: {}", clauses)
+            debug_print(1, "{}:\t{}", abs, atom)
+        debug_print(1, "\nClauses: {}", clauses)
 
         cnf = pysat.formula.CNF(from_clauses=clauses)
 
@@ -236,24 +237,24 @@ def main():
                 break
 
             smt_solver.push()
-            debug_print("\nSatisfying expressions from SAT solver:")
+            debug_print(1, "\nSatisfying expressions from SAT solver:")
             for abstraction in assignment:
                 expr = bool_abstraction.get_expression(abstraction)
-                debug_print("{}:\t{}", abstraction, expr)
+                debug_print(1, "{}:\t{}", abstraction, expr)
                 smt_solver.add_assertion(expr)
 
-            debug_print("\nChecking assignment on QF_LRA solver: {}", smt_solver_name)
+            debug_print(0, "\nChecking assignment on QF_LRA solver: {}", smt_solver_name)
             if smt_solver.solve():
                 print("sat")
                 print(smt_solver.get_model())
                 smt_solver.pop()
                 break
             else:
-                debug_print("unsat")
+                debug_print(0, "unsat")
                 smt_solver.pop()
                 conflict_clause = [-literal for literal in assignment]
                 if conflict_clause:
-                    debug_print("Adding conflict clause: {}", conflict_clause)
+                    debug_print(0, "Adding conflict clause: {}", conflict_clause)
                     sat_solver.add_clause(conflict_clause)
 
 
