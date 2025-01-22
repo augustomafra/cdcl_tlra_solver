@@ -41,8 +41,12 @@ class BooleanAbstraction():
         self.expressions = list()
         self.abstractions = dict()
         self.clauses = list()
+
         for atom in formula.get_atoms():
             self.add_abstraction(atom)
+
+        abstraction = self.clausify(self.formula)
+        self.add_clause([abstraction])
 
     def add_abstraction(self, expr):
         abstraction = self.get_abstraction(expr)
@@ -65,14 +69,8 @@ class BooleanAbstraction():
 
         return self.expressions[abstraction - 1]
 
-    def get_clauses(self):
-        if self.clauses:
-            return self.clauses
-
-        abstraction = self.clausify(self.formula)
-        self.clauses.append([abstraction])
-
-        return self.clauses
+    def add_clause(self, clause):
+        self.clauses.append(clause)
 
     def clausify(self, expr):
         abstraction = self.get_abstraction(expr)
@@ -88,10 +86,10 @@ class BooleanAbstraction():
                 child = self.clausify(expr.arg(0))
 
                 # abstraction => -child
-                self.clauses.append([-abstraction, -child])
+                self.add_clause([-abstraction, -child])
 
                 # -child => abstraction
-                self.clauses.append([child, abstraction])
+                self.add_clause([child, abstraction])
 
                 return abstraction
 
@@ -100,11 +98,11 @@ class BooleanAbstraction():
 
                 for child in children:
                     # child => abstraction
-                    self.clauses.append([-child, abstraction])
+                    self.add_clause([-child, abstraction])
 
                 # abstraction => child1 v child2 v ... v childn
                 children.append(-abstraction)
-                self.clauses.append(children)
+                self.add_clause(children)
 
                 return abstraction
 
@@ -113,12 +111,12 @@ class BooleanAbstraction():
 
                 for child in children:
                     # abstraction => child
-                    self.clauses.append([-abstraction, child])
+                    self.add_clause([-abstraction, child])
 
                 # child1 ^ child2 ^ ... ^ childn => abstraction
                 negated_children = [-child for child in children]
                 negated_children.append(abstraction)
-                self.clauses.append(negated_children)
+                self.add_clause(negated_children)
 
                 return abstraction
 
@@ -129,14 +127,14 @@ class BooleanAbstraction():
                 # abstraction => (precondition => children)
                 clause = [-abstraction, -precondition]
                 clause.extend(children)
-                self.clauses.append(clause)
+                self.add_clause(clause)
 
                 # -precondition => abstraction
-                self.clauses.append([precondition, abstraction])
+                self.add_clause([precondition, abstraction])
 
                 for child in children:
                     # child => abstraction
-                    self.clauses.append([-child, abstraction])
+                    self.add_clause([-child, abstraction])
 
                 return abstraction
 
@@ -144,16 +142,16 @@ class BooleanAbstraction():
                 lhs, rhs = [self.clausify(arg) for arg in expr.args()]
 
                 # abstraction => (lhs => rhs)
-                self.clauses.append([-abstraction, -lhs, rhs])
+                self.add_clause([-abstraction, -lhs, rhs])
 
                 # abstraction => (rhs => lhs)
-                self.clauses.append([-abstraction, lhs, -rhs])
+                self.add_clause([-abstraction, lhs, -rhs])
 
                 # lhs ^ rhs => abstraction
-                self.clauses.append([-lhs, -rhs, abstraction])
+                self.add_clause([-lhs, -rhs, abstraction])
 
                 # -lhs ^ -rhs => abstraction
-                self.clauses.append([lhs, rhs, abstraction])
+                self.add_clause([lhs, rhs, abstraction])
 
                 return abstraction
 
@@ -271,10 +269,10 @@ def main():
         smt_solver.cvc5.setOption("ite-simp", "false")
 
         formula = script.get_strict_formula()
-        bool_abstraction = BooleanAbstraction(formula)
-        debug_print(1, "Clausifying SMT-LIB2 formula: {}", formula)
 
-        clauses = bool_abstraction.get_clauses()
+        debug_print(1, "Clausifying SMT-LIB2 formula: {}", formula)
+        bool_abstraction = BooleanAbstraction(formula)
+        clauses = bool_abstraction.clauses
 
         for atom, abs in bool_abstraction.abstractions.items():
             debug_print(1, "{}:\t{}", abs, atom)
@@ -331,6 +329,7 @@ def main():
                 smt_assertions.clear()
                 if conflict_clause:
                     debug_print(0, "Adding conflict clause: {}", conflict_clause)
+                    bool_abstraction.add_clause(conflict_clause)
                     sat_solver.add_clause(conflict_clause)
 
 
