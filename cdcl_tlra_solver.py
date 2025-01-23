@@ -4,6 +4,7 @@ import pysmt.operators
 import pysat.solvers
 import pysmt.environment
 import pysmt.shortcuts
+import pysmt.smtlib.commands
 import pysmt.smtlib.parser
 import pysmt.smtlib.script
 
@@ -271,6 +272,11 @@ def main():
 
     smt_parser = pysmt.smtlib.parser.SmtLibParser()
     script = smt_parser.get_script_fname(args.smt_lib2_filename)
+    expected = None
+    for info_cmd in script.filter_by_command_name([pysmt.smtlib.commands.SET_INFO]):
+        key, value = info_cmd.args
+        if key == ":status":
+            expected = value
 
     with pysat.solvers.Solver(name=args.sat_solver.name) as sat_solver:
         smt_solver_name = "cvc5"
@@ -285,7 +291,7 @@ def main():
         try:
             bool_abstraction = BooleanAbstraction(formula)
         except RecursionError as stack_overflow_error:
-            print(stack_overflow_error)
+            print("error: {}".format(stack_overflow_error))
             sys.exit(1)
         clauses = bool_abstraction.clauses
 
@@ -303,6 +309,9 @@ def main():
 
             if not assignment:
                 print("unsat")
+                if expected is not None and expected != "unsat":
+                    print("error: expected result was {}".format(expected))
+                    sys.exit(1)
                 break
 
             smt_solver.push()
@@ -323,6 +332,9 @@ def main():
                     print(smt_solver.get_model())
                 smt_solver.pop()
                 smt_assertions.clear()
+                if expected is not None and expected != "sat":
+                    print("error: expected result was {}".format(expected))
+                    sys.exit(1)
                 break
             else:
                 debug_print(0, "unsat")
