@@ -8,6 +8,7 @@ import pysmt.smtlib.parser
 import pysmt.smtlib.script
 
 import argparse
+import enum
 import sys
 
 verbose = 0
@@ -197,38 +198,24 @@ class SatSolver:
 
         raise UnknownSatSolver(solver_name)
 
-def main():
-    arg_parser = argparse.ArgumentParser(prog="cdcl_tlra_solver",
-                                         description="A Python CDCL(TLRA) SMT solver")
-    arg_parser.add_argument("smt_lib2_filename",
-                            help="Input file on SMT-LIB2 format")
-    arg_parser.add_argument("--sat-solver", "-s",
-                            type=SatSolver,
-                            default="minisat22",
-                            help="SAT solver used for solving propositional "
-                                 "abstraction (Default: minisat22). "
-                                 "Refer to https://pysathq.github.io/docs/html/api/solvers.html#pysat.solvers.SolverNames "
-                                 "for available solvers.")
-    arg_parser.add_argument("--dump-models", "-m",
-                            action="store_true",
-                            help="Print models after every SAT response")
-    arg_parser.add_argument("--verbose", "-v",
-                            type=int,
-                            default=0,
-                            help="Print verbose debugging log")
-    args = arg_parser.parse_args()
+class Status(enum.Enum):
+    UNSAT = 0
+    SAT = 1
+    ERROR = 2
+
+def cdcl_tlra_check_sat(smt_lib2_filename, sat_solver_name="minisat22", dump_models=False, verbosity=0):
     global verbose
-    verbose = args.verbose
+    verbose = verbosity
 
     smt_parser = pysmt.smtlib.parser.SmtLibParser()
-    script = smt_parser.get_script_fname(args.smt_lib2_filename)
+    script = smt_parser.get_script_fname(smt_lib2_filename)
     expected = None
     for info_cmd in script.filter_by_command_name([pysmt.smtlib.commands.SET_INFO]):
         key, value = info_cmd.args
         if key == ":status":
             expected = value
 
-    with pysat.solvers.Solver(name=args.sat_solver.name) as sat_solver:
+    with pysat.solvers.Solver(name=sat_solver_name) as sat_solver:
         smt_solver_name = "cvc5"
         smt_solver = pysmt.shortcuts.Solver(name=smt_solver_name, logic="QF_LRA")
         smt_solver.cvc5.setOption("incremental", "true")
@@ -242,7 +229,7 @@ def main():
             bool_abstraction = BooleanAbstraction(formula)
         except RecursionError as stack_overflow_error:
             print("error: {}".format(stack_overflow_error))
-            sys.exit(1)
+            return Status.ERROR
         clauses = bool_abstraction.clauses
 
         for atom, abs in bool_abstraction.abstractions.items():
@@ -255,14 +242,14 @@ def main():
             sat_solver.add_clause(clause)
 
         while True:
-            assignment = get_sat_assignment(sat_solver, args.sat_solver.name)
+            assignment = get_sat_assignment(sat_solver, sat_solver_name)
 
             if not assignment:
                 print("unsat")
                 if expected is not None and expected != "unsat":
                     print("error: expected result was {}".format(expected))
-                    sys.exit(1)
-                break
+                    return Status.ERROR
+                return Status.UNSAT
 
             smt_solver.push()
             smt_assertions = dict()
@@ -278,14 +265,14 @@ def main():
             debug_print(0, "\nChecking assignment on QF_LRA solver: {}", smt_solver_name)
             if smt_solver.solve():
                 print("sat")
-                if args.dump_models:
+                if dump_models:
                     print(smt_solver.get_model())
                 smt_solver.pop()
                 smt_assertions.clear()
                 if expected is not None and expected != "sat":
                     print("error: expected result was {}".format(expected))
-                    sys.exit(1)
-                break
+                    return Status.ERROR
+                return Status.SAT
             else:
                 debug_print(0, "unsat")
                 unsat_core = smt_solver.cvc5.getUnsatCore()
@@ -306,6 +293,34 @@ def main():
                     bool_abstraction.add_clause(conflict_clause)
                     sat_solver.add_clause(conflict_clause)
 
+
+def main():
+    arg_parser = argparse.ArgumentParser(prog="cdcl_tlra_solver",
+                                         description="A Python CDCL(TLRA) SMT solver")
+    arg_parser.add_argument("smt_lib2_filename",
+                            help="Input file on SMT-LIB2 format")
+    arg_parser.add_argument("--sat-solver", "-s",
+                            type=SatSolver,
+                            default="minisat22",
+                            help="SAT solver used for solving propositional "
+                                 "abstraction (Default: minisat22). "
+                                 "Refer to https://pysathq.github.io/docs/html/api/solvers.html#pysat.solvers.SolverNames "
+                                 "for available solvers.")
+    arg_parser.add_argument("--dump-models", "-m",
+                            action="store_true",
+                            help="Print models after every SAT response")
+    arg_parser.add_argument("--verbose", "-v",
+                            type=int,
+                            default=0,
+                            help="Print verbose debugging log")
+    args = arg_parser.parse_args()
+
+    status = cdcl_tlra_check_sat(args.smt_lib2_filename,
+                                 args.sat_solver.name,
+                                 args.dump_models,
+                                 args.verbose)
+    if status == Status.ERROR:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
