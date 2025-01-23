@@ -164,7 +164,11 @@ class BooleanAbstraction():
 
                 return abstraction
 
-        raise NotImplementedError(expr)
+            case pysmt.operators.BOOL_CONSTANT:
+                self.add_clause([abstraction if expr.is_true() else -abstraction])
+                return abstraction
+
+        raise NotImplementedError(expr, expr.node_type())
 
 def get_sat_assignment(sat_solver, solver_name):
     debug_print(0, "\nRunning SAT solver: {}", solver_name)
