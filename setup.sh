@@ -3,6 +3,7 @@ set -e
 
 if [ ! -d "benchmark/non-incremental" ]; then
     echo "Decompressing benchmark/QF_LRA.tar.zst"
+    mkdir -p benchmark
     cd benchmark
     unzstd QF_LRA.tar.zstd
     cd ..
