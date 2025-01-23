@@ -1,5 +1,4 @@
 benchmark/non-incremental
-tests
 __pycache__
 .vscode
 *.tar.zst
