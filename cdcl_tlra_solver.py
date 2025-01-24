@@ -214,9 +214,6 @@ def cdcl_tlra_check_sat(smt_lib2_filename, sat_solver_name="minisat22", dump_mod
         key, value = info_cmd.args
         if key == ":status":
             expected = value
-    if expected is not None and expected == "unknown":
-        print("unknown")
-        return Status.ERROR
 
     with pysat.solvers.Solver(name=sat_solver_name) as sat_solver:
         smt_solver_name = "cvc5"
