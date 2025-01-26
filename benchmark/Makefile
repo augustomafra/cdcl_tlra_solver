@@ -1,5 +1,7 @@
 SMTLIB_BENCHMARKS = $(shell find . -name '*.smt2')
 TEST_RESULTS = $(SMTLIB_BENCHMARKS:.smt2=.log)
+
+SOLVER = python3 ../cdcl_tlra_solver.py
 TIMEOUT = 1s
 
 .PHONY: all test summary clean
@@ -12,7 +14,7 @@ pj2-tests:
 test: pj2-tests $(TEST_RESULTS)
 
 %.log: %.smt2
-	./run_benchmark.sh $(TIMEOUT) $< $@
+	./run_benchmark.sh $(TIMEOUT) $< $@ $(SOLVER)
 
 summary:
 	@./run_summary.sh
