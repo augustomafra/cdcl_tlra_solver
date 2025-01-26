@@ -34,6 +34,27 @@ make test
 make test -j4 # Run tests using 4 parallel jobs
 make test TIMEOUT=40s # Set timeout of 40s for each test
 make test SOLVER=cvc5 # Run tests with cvc5 instead of the Python solver
+# Set additional flags to the solver:
+make test SOLVER="python3 ../cdcl_tlra_solver.py --dump-models --sat-solver=cadical195"
+```
+
+## Command-line Options
+```
+$ python3 cdcl_tlra_solver.py  -h
+usage: cdcl_tlra_solver [-h] [--sat-solver SAT_SOLVER] [--dump-models] [--verbose VERBOSE] smt_lib2_filename
+
+A Python CDCL(TLRA) SMT solver
+
+positional arguments:
+  smt_lib2_filename     Input file on SMT-LIB2 format
+
+options:
+  -h, --help            show this help message and exit
+  --sat-solver SAT_SOLVER, -s SAT_SOLVER
+                        SAT solver used for solving propositional abstraction (Default: minisat22). Refer to https://pysathq.github.io/docs/html/api/solvers.html#pysat.solvers.SolverNames for available solvers.
+  --dump-models, -m     Print models after every SAT response
+  --verbose VERBOSE, -v VERBOSE
+                        Print verbose debugging log
 ```
 
 ## Goals
