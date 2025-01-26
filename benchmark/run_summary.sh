@@ -21,24 +21,31 @@ successes=`grep -Lw '^error:\|^Traceback' ${test_results}`
 success_count=`wc -w <<< ${successes}`
 
 echo "Successes: ${success_count}"
+if [ "${success_count}" != 0 ]
+then
 
-sat=`grep -lw '^sat' ${successes}`
-sat_count=`wc -w <<< ${sat}`
-echo "    sat: ${sat_count}"
-echo "${sat}" > summary/sat.txt
+    sat=`grep -lw '^sat' ${successes}`
+    sat_count=`wc -w <<< ${sat}`
+    echo "    sat: ${sat_count}"
+    echo "${sat}" > summary/sat.txt
 
-unsat=`grep -lw '^unsat' ${successes}`
-unsat_count=`wc -w <<< ${unsat}`
-echo "    unsat: ${unsat_count}"
-echo "${unsat}" > summary/unsat.txt
+    unsat=`grep -lw '^unsat' ${successes}`
+    unsat_count=`wc -w <<< ${unsat}`
+    echo "    unsat: ${unsat_count}"
+    echo "${unsat}" > summary/unsat.txt
 
-unknown=`grep -lw '^unknown' ${successes}`
-unknown_count=`wc -w <<< ${unknown}`
-echo "    unknown: ${unknown_count}"
-echo "${unknown}" > summary/unknown.txt
-echo ""
+    unknown=`grep -lw '^unknown' ${successes}`
+    unknown_count=`wc -w <<< ${unknown}`
+    echo "    unknown: ${unknown_count}"
+    echo "${unknown}" > summary/unknown.txt
+    echo ""
+fi
 
 echo "Failures: ${error_count}"
+if [ "${error_count}" = 0 ]
+then
+    exit
+fi
 
 soundness=`grep -lw '^error: expected result was' ${failures}`
 soundess_count=`wc -w <<< ${soundness}`
