@@ -40,6 +40,11 @@ echo ""
 
 echo "Failures: ${error_count}"
 
+soundness=`grep -lw '^error: expected result was' ${failures}`
+soundess_count=`wc -w <<< ${soundness}`
+echo "    soundness: ${soundess_count}"
+echo "${soundness}" > summary/soundness.txt
+
 timeouts=`grep -lw '^error: timed out after' ${failures}`
 timeout_count=`wc -w <<< ${timeouts}`
 echo "    timeout: ${timeout_count}"
@@ -54,7 +59,11 @@ exceptions=`grep -lw '^Traceback' ${failures}`
 exception_count=`wc -w <<< ${exceptions}`
 echo "    python exception: ${exception_count}"
 
-exception_types=`tail -qn1 ${exceptions} | awk '{print $1}' | sort -u`
+exception_types=`tail -qn2 ${exceptions} \
+                | grep -vw '^error:' \
+                | awk '{print $1}' \
+                | sort -u` \
+
 for type in ${exception_types}
 do
     type_list=`grep -lw "^${type}" ${exceptions}`
