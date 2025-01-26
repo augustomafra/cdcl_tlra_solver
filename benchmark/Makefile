@@ -4,12 +4,12 @@ TIMEOUT = 1s
 
 .PHONY: all test summary clean
 
-all: non-incremental
+all: pj2-tests
 
-non-incremental:
-	unzstd QF_LRA.tar.zstd
+pj2-tests:
+	tar -xvf pj2-tests.tar.gz
 
-test: non-incremental $(TEST_RESULTS)
+test: pj2-tests $(TEST_RESULTS)
 
 %.log: %.smt2
 	./run_benchmark.sh $(TIMEOUT) $< $@

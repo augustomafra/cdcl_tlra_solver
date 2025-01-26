@@ -1,3 +1,4 @@
+benchmark/pj2-tests
 benchmark/non-incremental
 benchmark/summary
 __pycache__
