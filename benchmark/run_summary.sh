@@ -59,6 +59,11 @@ exceptions=`grep -lw '^Traceback' ${failures}`
 exception_count=`wc -w <<< ${exceptions}`
 echo "    python exception: ${exception_count}"
 
+if [ "${exception_count}" = 0 ]
+then
+    exit
+fi
+
 exception_types=`tail -qn2 ${exceptions} \
                 | grep -vw '^error:' \
                 | awk '{print $1}' \
