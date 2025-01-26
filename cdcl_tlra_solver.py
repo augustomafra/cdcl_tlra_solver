@@ -39,6 +39,8 @@ def eval_smt_lib2_script(script, solver, solver_name):
 
 class BooleanAbstraction():
     def __init__(self, formula):
+        self.formula_manager = pysmt.environment.get_env().formula_manager
+
         self.formula = formula
         self.expressions = list()
         self.abstractions = dict()
@@ -74,7 +76,7 @@ class BooleanAbstraction():
     def get_expression(self, abstraction):
         if abstraction < 0:
             expr = self.expressions[-abstraction - 1]
-            return pysmt.environment.get_env().formula_manager.Not(expr)
+            return self.formula_manager.Not(expr)
 
         return self.expressions[abstraction - 1]
 
@@ -164,8 +166,38 @@ class BooleanAbstraction():
 
                 return abstraction
 
+            case pysmt.operators.ITE:
+                cond, then_expr, else_expr = expr.args()
+
+                # Translate ite to equivalent SMT formulas using iff and
+                # delegate to recursive clausify calls:
+                ite_result = self.formula_manager.FreshSymbol()
+                equiv_formula = self.formula_manager.Iff(ite_result, expr)
+                self.add_abstraction(equiv_formula)
+
+                # ite_result ^ cond <=> then_expr
+                cond_true = self.formula_manager.And(ite_result, cond)
+                then_constraint = self.formula_manager.Iff(cond_true, then_expr)
+                self.add_clause([self.clausify(then_constraint)])
+
+                # ite_result ^ -cond <=> else_expr
+                cond_false = self.formula_manager.And(ite_result, self.formula_manager.Not(cond))
+                else_constraint = self.formula_manager.Iff(cond_false, else_expr)
+                self.add_clause([self.clausify(else_constraint)])
+
+                return abstraction
+
             case pysmt.operators.BOOL_CONSTANT:
                 self.add_clause([abstraction if expr.is_true() else -abstraction])
+                return abstraction
+
+            case pysmt.operators.SYMBOL:
+                # Clausify only symbols of Bool type, which may be originated
+                # from Fresh Symbols from clausification of ite expressions
+                if not expr.symbol_type().is_bool_type():
+                    raise NotImplementedError(expr, expr.node_type(), expr.symbol_type())
+
+                # An SMT symbol with Bool sort is its own boolean SAT encoding
                 return abstraction
 
         raise NotImplementedError(expr, expr.node_type())
