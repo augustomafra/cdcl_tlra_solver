@@ -19,6 +19,11 @@ def debug_print(verbosity_level, fmt, *args):
         print(fmt.format(*args))
 
 def eval_smt_lib2_script(script, solver, solver_name):
+    """Evaluate an SMT-LIB script on the given solver.
+    Note: not used in the CDCL(TLRA) solver, but kept here only for debugging
+    purposes.
+    """
+
     debug_print(0, "Evaluating SMT-LIB2 script on SMT solver: {}", solver_name)
     steps = []
     for command in script.commands:
@@ -26,7 +31,7 @@ def eval_smt_lib2_script(script, solver, solver_name):
             result = pysmt.smtlib.script.evaluate_command(command, solver)
             steps.append((command.name, result))
         except RuntimeError as error:
-            debug_print(0, "ERROR: {}: {}", command.name, error)
+            debug_print(0, "error: {}: {}", command.name, error)
             steps.append((command.name, None))
 
     for command, result in steps:
@@ -38,6 +43,27 @@ def eval_smt_lib2_script(script, solver, solver_name):
                     debug_print(0, result)
 
 class BooleanAbstraction():
+    """Encapsulates the mapping between SMT expressions and their corresponding
+    propositional encodings.
+
+    Provides the utilites for converting to/from expressions and abstractions:
+
+        expr = smt_script.get_strict_formula()
+
+        # Convert expr to an integer representing the propositional abstraction
+        abstraction = self.add_abstraction(expr)
+
+        # Obtaining expressions from abstractions
+        assert(expr == self.get_expression(abstraction))
+        assert(self.formula_manager.Not(expr) == \
+                                            self.get_expression(-abstraction))
+
+        # Obtaining abstractions from expressions
+        assert(abstraction == self.get_abstraction(expr))
+        assert(-abstraction == \
+                        self.get_abstraction(self.formula_manager.Not(expr)))
+    """
+
     def __init__(self, formula):
         self.formula_manager = pysmt.environment.get_env().formula_manager
 
@@ -84,6 +110,11 @@ class BooleanAbstraction():
         self.clauses.append(clause)
 
     def clausify(self, expr):
+        """Compute Tseitin's encoding of the expression and store the created
+        clauses into self.clauses.
+        Return the integer corresponding to the propositional abstraction.
+        """
+
         abstraction = self.get_abstraction(expr)
         if abstraction:
             # Expr is an atom, so simply return its abstraction
@@ -203,6 +234,10 @@ class BooleanAbstraction():
         raise NotImplementedError(expr, expr.node_type())
 
 def get_sat_assignment(sat_solver, solver_name):
+    """Solve the propositional problem in the given SAT solver and return the
+    asserted literals corresponding to the model, if any.
+    """
+
     debug_print(0, "\nRunning SAT solver: {}", solver_name)
 
     if sat_solver.solve():
@@ -213,9 +248,15 @@ def get_sat_assignment(sat_solver, solver_name):
     return []
 
 class UnknownSatSolver(argparse.ArgumentError):
+    """Placeholder exception type for reporting invalid command-line SAT solver
+    name."""
     pass
 
 class SatSolver:
+    """Validator class for checking command-line SAT solver name arguments.
+    On construction, check if the given name matches any of the available pysat
+    solvers, and raise UnknownSatSolver exception if no match was found.
+    """
     def __init__(self, solver_name):
         self.validate_name(solver_name)
         self.name = solver_name
@@ -236,6 +277,8 @@ class Status(enum.Enum):
     ERROR = 2
 
 def cdcl_tlra_check_sat(smt_lib2_filename, sat_solver_name="minisat22", dump_models=False, verbosity=0):
+    """Core CDCL(TLRA) loop"""
+
     global verbose
     verbose = verbosity
 
