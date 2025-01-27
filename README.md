@@ -25,7 +25,7 @@ python3 cdcl_tlra_solver.py SMT_LIB_FILE.smt2
 cd benchmark
 make
 ```
-1. Run `make test` to launch the benchmark runs. The following Makefile variables are available for configuring the benchmark run:
+4. Run `make test` to launch the benchmark runs. The following Makefile variables are available for configuring the benchmark run:
    - `SOLVER`: the SMT solver used for running the tests. By default, it is set to the Python solver.
    - `TIMEOUT`: the timeout for each test. Use the format as specified by [`timeout(1)` man page](https://man7.org/linux/man-pages/man1/timeout.1.html).
 ```
@@ -36,6 +36,24 @@ make test TIMEOUT=40s # Set timeout of 40s for each test
 make test SOLVER=cvc5 # Run tests with cvc5 instead of the Python solver
 # Set additional flags to the solver:
 make test SOLVER="python3 ../cdcl_tlra_solver.py --dump-models --sat-solver=cadical195"
+```
+5. Run `make summary` to collect benchmark results into the `summary` folder.
+```
+$ make summary
+### Benchmark Statistics ###
+
+Number of tests run: 50
+
+Successes: 35
+    sat: 16
+    unsat: 19
+    unknown: 0
+
+Failures: 15
+    soundness: 0
+    timeout: 15
+    stack overflow: 0
+    python exception: 0
 ```
 
 ## Command-line Options
