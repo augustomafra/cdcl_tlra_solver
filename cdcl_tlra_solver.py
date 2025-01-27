@@ -292,7 +292,6 @@ def cdcl_tlra_check_sat(smt_lib2_filename, sat_solver_name="minisat22", dump_mod
                 term = smt_solver.converter.convert(expr)
                 smt_assertions[term] = expr
                 smt_solver.cvc5.assertFormula(term)
-                #smt_solver.add_assertion(expr)
 
             debug_print(0, "\nChecking assignment on QF_LRA solver: {}", smt_solver_name)
             if smt_solver.solve():
@@ -315,7 +314,6 @@ def cdcl_tlra_check_sat(smt_lib2_filename, sat_solver_name="minisat22", dump_mod
                     if term in smt_assertions:
                         abs = bool_abstraction.get_abstraction(smt_assertions[term])
                     unsat_core_abs.append(abs)
-                #unsat_core_abs = [bool_abstraction.get_abstraction(cvc5_term_to_expr(smt_solver.converter, term)) for term in unsat_core]
                 debug_print(0, "Unsat core abstraction: {}", unsat_core_abs)
                 conflict_clause = [-abs for abs in unsat_core_abs]
                 smt_solver.pop()
