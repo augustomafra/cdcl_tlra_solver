@@ -20,7 +20,7 @@ pip3 install -r requirements.txt
 ```
 python3 cdcl_tlra_solver.py SMT_LIB_FILE.smt2
 ```
-3. Navigate to `benchmark` directory and run `make` to extract the SMT tests.
+3. Navigate to `benchmark` directory and run `make` to extract the SMT tests. Copy any other SMT-LIB tests to this folder in order run them automatically.
 ```
 cd benchmark
 make
