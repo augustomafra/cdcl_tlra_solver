@@ -1,10 +1,19 @@
 #!/bin/bash
+copy_logs() {
+    for log in $@
+    do
+        dir=`dirname ${log}`
+        mkdir -p summary/"${dir}"
+        cp "${log}" summary/"${log}"
+    done
+}
+
 mkdir -p summary
 
 echo "### Benchmark Statistics ###" > summary/statistics.txt
 echo "" >> summary/statistics.txt
 
-test_results=`find . -name '*.log'`
+test_results=`find pj2-tests -name '*.log'`
 total=`wc -w <<< ${test_results}`
 
 echo "Number of tests run: ${total}" >> summary/statistics.txt
@@ -15,7 +24,6 @@ then
     cat summary/statistics.txt
     exit
 fi
-
 
 failures=`grep -lw '^error:\|^Traceback' ${test_results}`
 error_count=`wc -w <<< ${failures}`
@@ -30,16 +38,19 @@ then
     sat_count=`wc -w <<< ${sat}`
     echo "    sat: ${sat_count}" >> summary/statistics.txt
     echo "${sat}" > summary/sat.txt
+    copy_logs "${sat}"
 
     unsat=`grep -lw '^unsat' ${successes}`
     unsat_count=`wc -w <<< ${unsat}`
     echo "    unsat: ${unsat_count}" >> summary/statistics.txt
     echo "${unsat}" > summary/unsat.txt
+    copy_logs "${unsat}"
 
     unknown=`grep -lw '^unknown' ${successes}`
     unknown_count=`wc -w <<< ${unknown}`
     echo "    unknown: ${unknown_count}" >> summary/statistics.txt
     echo "${unknown}" > summary/unknown.txt
+    copy_logs "${unknown}"
     echo "" >> summary/statistics.txt
 fi
 
@@ -54,16 +65,19 @@ soundness=`grep -lw '^error: expected result was' ${failures}`
 soundess_count=`wc -w <<< ${soundness}`
 echo "    soundness: ${soundess_count}" >> summary/statistics.txt
 echo "${soundness}" > summary/soundness.txt
+copy_logs "${soundness}"
 
 timeouts=`grep -lw '^error: timed out after' ${failures}`
 timeout_count=`wc -w <<< ${timeouts}`
 echo "    timeout: ${timeout_count}" >> summary/statistics.txt
 echo "${timeouts}" > summary/timeout.txt
+copy_logs "${timeouts}"
 
 stackoverflow=`grep -lw '^error: maximum recursion depth exceeded' ${failures}`
 so_count=`wc -w <<< ${stackoverflow}`
 echo "    stack overflow: ${so_count}" >> summary/statistics.txt
 echo "${stackoverflow}" > summary/stackoverflow.txt
+copy_logs "${stackoverflow}"
 
 exceptions=`grep -lw '^Traceback' ${failures}`
 exception_count=`wc -w <<< ${exceptions}`
@@ -86,6 +100,7 @@ do
     type_count=`wc -w <<< ${type_list}`
     echo "        ${type} ${type_count}" >> summary/statistics.txt
     echo "${type_list}" > summary/"${type//[:.]/}.txt"
+    copy_logs "${type_list}"
 done
 
 cat summary/statistics.txt
